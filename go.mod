@@ -4,7 +4,10 @@ go 1.17
 
 require github.com/stretchr/testify v1.7.1 // indirect
 
-require golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+require (
+	github.com/go-sql-driver/mysql v1.7.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+)
 
 require (
 	github.com/gin-contrib/sse v0.1.0 // indirect
