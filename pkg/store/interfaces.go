@@ -1,6 +1,16 @@
 package store
 
-import "github.com/bootcamp-go/consignas-go-db.git/internal/domain"
+import (
+	"errors"
+
+	"github.com/bootcamp-go/consignas-go-db.git/internal/domain"
+)
+
+var (
+	ErrNotFound   = errors.New("There is not product with that id")
+	ErrInternal   = errors.New("Something internal has wrong")
+	ErrDuplicated = errors.New("Product already exists")
+)
 
 type StoreInterface interface {
 	// Read devuelve un producto por su id

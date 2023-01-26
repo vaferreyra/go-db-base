@@ -2,24 +2,24 @@ package store
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
+	"time"
 
 	"github.com/bootcamp-go/consignas-go-db.git/internal/domain"
 	"github.com/go-sql-driver/mysql"
 )
 
-var (
-	ErrNotFound   = errors.New("There is not product with that id")
-	ErrInternal   = errors.New("Something internal has wrong")
-	ErrDuplicated = errors.New("Product already exists")
-)
-
 const (
 	GET_BY_ID = `SELECT id, name, quantity, code_value, is_published, expiration, price 
  			     FROM products 
-			     WHERE id = ?`
+			     WHERE id = ?;`
 	INSERT = `INSERT INTO products(name, quantity, code_value, is_published, expiration, price)
-			  VALUES ?, ?, ?, ?, ?, ?`
+			  VALUES (?, ?, ?, ?, date(?), ?);`
+	EXISTS_CODE_VALUE = `SELECT code_value
+						 FROM products
+						 WHERE code_value = ?;`
+	DELETE = `DELETE FROM products
+			  WHERE id = ?;`
 )
 
 type sqlStore struct {
@@ -61,6 +61,13 @@ func (store *sqlStore) Read(id int) (product domain.Product, er error) {
 func (store *sqlStore) Create(product domain.Product) (er error) {
 	statement, err := store.Database.Prepare(INSERT)
 	if err != nil {
+		fmt.Println(err, "Line 68")
+		er = ErrInternal
+		return
+	}
+
+	timeParsed, err := time.Parse("2006-01-02", product.Expiration)
+	if err != nil {
 		er = ErrInternal
 		return
 	}
@@ -72,7 +79,7 @@ func (store *sqlStore) Create(product domain.Product) (er error) {
 		product.Quantity,
 		product.CodeValue,
 		product.IsPublished,
-		product.Expiration,
+		timeParsed,
 		product.Price,
 	)
 	if err != nil {
@@ -86,6 +93,7 @@ func (store *sqlStore) Create(product domain.Product) (er error) {
 		case 1062:
 			er = ErrDuplicated
 		default:
+			fmt.Println("line 96")
 			er = ErrInternal
 		}
 		return
@@ -112,6 +120,40 @@ func (store *sqlStore) Create(product domain.Product) (er error) {
 
 func (store *sqlStore) Update(product domain.Product) error { return nil }
 
-func (store *sqlStore) Delete(id int) error { return nil }
+func (store *sqlStore) Delete(id int) error {
+	statement, err := store.Database.Prepare(DELETE)
+	if err != nil {
+		return ErrInternal
+	}
 
-func (store *sqlStore) Exists(codeValue string) bool { return false }
+	result, err := statement.Exec(id)
+	if err != nil {
+		return ErrInternal
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ErrInternal
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+func (store *sqlStore) Exists(codeValue string) bool {
+	row := store.Database.QueryRow(EXISTS_CODE_VALUE)
+
+	if row.Err() != nil {
+		switch row.Err() {
+		case sql.ErrNoRows:
+			return false
+		case sql.ErrConnDone:
+			return false
+		}
+	}
+
+	return true
+}

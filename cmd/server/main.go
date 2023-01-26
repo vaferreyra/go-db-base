@@ -7,19 +7,19 @@ import (
 	"github.com/bootcamp-go/consignas-go-db.git/internal/product"
 	"github.com/bootcamp-go/consignas-go-db.git/pkg/store"
 	"github.com/gin-gonic/gin"
-	"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load(".env")
 
-	databaseconfig := &mysql.Config{
-		User:   "root",
-		Passwd: "",
-		Addr:   "localhost:3306",
-		DBName: "my_db",
-	}
-
-	database, err := sql.Open("mysql", databaseconfig.FormatDSN())
+	// databaseconfig := &mysql.Config{
+	// 	User:   "root",
+	// 	Passwd: "",
+	// 	Addr:   "localhost:3306",
+	// 	DBName: "my_db",
+	// }
+	database, err := sql.Open("mysql", "'root'@tcp(localhost:3306)/my_db?parseTime=true")
 	if err != nil {
 		panic(err)
 	}

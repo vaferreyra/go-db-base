@@ -2,10 +2,15 @@ package product
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/bootcamp-go/consignas-go-db.git/internal/domain"
 	"github.com/bootcamp-go/consignas-go-db.git/pkg/store"
+)
+
+var (
+	ErrNotFound   = errors.New("There is not product with that id")
+	ErrInternal   = errors.New("Something internal has wrong")
+	ErrDuplicated = errors.New("Product already exists")
 )
 
 type Repository interface {
@@ -31,7 +36,6 @@ func NewRepository(storage store.StoreInterface) Repository {
 func (r *repository) GetByID(id int) (domain.Product, error) {
 	product, err := r.storage.Read(id)
 	if err != nil {
-		fmt.Println(err)
 		return domain.Product{}, errors.New("product not found")
 	}
 	return product, nil
