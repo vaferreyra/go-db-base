@@ -5,19 +5,21 @@ import (
 	"errors"
 
 	"github.com/bootcamp-go/consignas-go-db.git/internal/domain"
+	"github.com/go-sql-driver/mysql"
 )
 
 var (
-	ErrNotFound = errors.New("There is not product with that id")
-	ErrInternal = errors.New("Something internal has wrong")
+	ErrNotFound   = errors.New("There is not product with that id")
+	ErrInternal   = errors.New("Something internal has wrong")
+	ErrDuplicated = errors.New("Product already exists")
 )
 
 const (
 	GET_BY_ID = `SELECT id, name, quantity, code_value, is_published, expiration, price 
  			     FROM products 
 			     WHERE id = ?`
-	INSERT = `INSERT INTO products(id, name, quantity, code_value, is_published, expiration, price)
-			  VALUES ?, ?, ?, ?, ?, ?, ?`
+	INSERT = `INSERT INTO products(name, quantity, code_value, is_published, expiration, price)
+			  VALUES ?, ?, ?, ?, ?, ?`
 )
 
 type sqlStore struct {
@@ -35,7 +37,7 @@ func (store *sqlStore) Read(id int) (product domain.Product, er error) {
 		switch row.Err() {
 		case sql.ErrNoRows:
 			er = ErrNotFound
-		case sql.ErrConnDone:
+		default:
 			er = ErrInternal
 		}
 		return
@@ -56,15 +58,56 @@ func (store *sqlStore) Read(id int) (product domain.Product, er error) {
 	return
 }
 
-func (store *sqlStore) Create(product domain.Product) error {
+func (store *sqlStore) Create(product domain.Product) (er error) {
 	statement, err := store.Database.Prepare(INSERT)
 	if err != nil {
-		return err
+		er = ErrInternal
+		return
 	}
 
 	defer statement.Close()
 
-	result, err := statement.Exec()
+	result, err := statement.Exec(
+		product.Name,
+		product.Quantity,
+		product.CodeValue,
+		product.IsPublished,
+		product.Expiration,
+		product.Price,
+	)
+	if err != nil {
+		driverErr, ok := err.(*mysql.MySQLError)
+		if !ok {
+			er = ErrInternal
+			return
+		}
+
+		switch driverErr.Number {
+		case 1062:
+			er = ErrDuplicated
+		default:
+			er = ErrInternal
+		}
+		return
+	}
+
+	// Check if product was inserted
+	affectedRows, err := result.RowsAffected()
+	if err != nil || affectedRows != 1 {
+		er = ErrInternal
+		return
+	}
+
+	// Get product id
+	productId, err := result.LastInsertId()
+	if err != nil {
+		er = ErrInternal
+		return
+	}
+
+	product.Id = int(productId)
+	return
+
 }
 
 func (store *sqlStore) Update(product domain.Product) error { return nil }
